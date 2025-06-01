@@ -35,7 +35,7 @@ class TheaterHomeWindow(ctk.CTkToplevel):
         self.geometry("1200x840+200+0")
         self.configure(fg_color=COLORS["background"])
         self.resizable(False, False)
-        self.grab_set()
+        # self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Додаємо ефект фону

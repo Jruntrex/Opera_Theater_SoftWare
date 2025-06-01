@@ -15,7 +15,6 @@ FONTS = {
     "regular": ("Arial", 16)
 }
 
-
 class TheaterSeatingUI(ctk.CTkToplevel):
     def __init__(self, parent, theater_seating, reserved_seats_file="ui/orders.json", performance_data=None):
         super().__init__(parent)
@@ -35,7 +34,7 @@ class TheaterSeatingUI(ctk.CTkToplevel):
 
         # Ініціалізуємо TheaterSeating з нормалізованими даними
         self.theater_seating = TheaterSeating(performance_data=self.performance_data)
-        self.theater_seating.load_reserved_seats(self.reserved_seats)  # Передаємо заброньовані місця
+        self.theater_seating.load_reserved_seats(self.reserved_seats)
 
         self.selected_seats = []
         self.buttons = {}
@@ -53,6 +52,22 @@ class TheaterSeatingUI(ctk.CTkToplevel):
         self.info_panel.pack_propagate(False)
         self.price_label = None
         self.selected_seats_label = None
+
+        # Додаємо кнопку "← Назад" у верхньому лівому куті
+        self.arrow_back_button = ctk.CTkButton(
+            self,
+            text="← Назад",
+            command=self.go_back,
+            fg_color=COLORS["white"],
+            hover_color="#E0E0E0",
+            text_color=COLORS["text"],
+            font=FONTS["regular"],
+            corner_radius=5,
+            width=120,
+            height=40,
+        )
+        self.arrow_back_button.place(x=20, y=20)
+
         self._create_info_panel()
         self._create_seating_layout()
         self.confirm_button = ctk.CTkButton(
@@ -92,23 +107,21 @@ class TheaterSeatingUI(ctk.CTkToplevel):
             "ВЕРЕСНЯ": "09", "ЖОВТНЯ": "10", "ЛИСТОПАДА": "11", "ГРУДНЯ": "12"
         }
 
-        # Нормалізація дати
         date_raw = performance_data.get("date", "30.06.2025")
-        if " " in date_raw:  # Формат "ДД ММММ ДД"
+        if " " in date_raw:
             date_parts = date_raw.split()
             day, month = date_parts[0], date_parts[1]
             month_num = MONTHS_UA.get(month.upper(), "06")
             normalized["date"] = f"2025-{month_num}-{day.zfill(2)}"
-        else:  # Формат "YYYY-MM-DD" або "DD.MM.YYYY"
+        else:
             try:
                 date_obj = datetime.strptime(date_raw, "%d.%m.%Y")
                 normalized["date"] = date_obj.strftime("%Y-%m-%d")
             except ValueError:
                 normalized["date"] = "2025-06-30"
 
-        # Нормалізація часу
         time_raw = performance_data.get("time", "20:00")
-        if ", " in time_raw:  # Формат "ДД.ММ, ГГ:ХХ"
+        if ", " in time_raw:
             normalized["time"] = time_raw.split(", ")[1]
         else:
             normalized["time"] = time_raw
@@ -133,7 +146,6 @@ class TheaterSeatingUI(ctk.CTkToplevel):
             print(f"Помилка при завантаженні {filename}: {str(e)}")
             return []
 
-        # Витягуємо заброньовані місця для поточної вистави
         reserved_seats = []
         current_title = self.performance_data.get("title", "")
         current_date = self.performance_data.get("date", "")
@@ -374,7 +386,6 @@ class TheaterSeatingUI(ctk.CTkToplevel):
             if response.get() != "Так":
                 return
         self.destroy()
-
 
 if __name__ == '__main__':
     root = ctk.CTk()

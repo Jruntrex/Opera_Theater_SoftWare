@@ -26,6 +26,7 @@ FONTS = {
     "date": ("Arial", 32, "bold")
 }
 
+
 class TheaterMainWindow(ctk.CTkToplevel):
     def __init__(self, parent, on_back):
         super().__init__(parent)
@@ -33,12 +34,27 @@ class TheaterMainWindow(ctk.CTkToplevel):
         self.title("Театр Березіль")
         self.geometry("1200x840+200+0")
         self.configure(fg_color=COLORS["background"])
+        self.protocol("WM_DELETE_WINDOW", self.go_back)  # Обробка закриття вікна
+
+        # Ініціалізація основних фреймів
+        self._setup_header_frame()
+        self._setup_nav_frame()
+        self._setup_content_frame()
+        self._load_performance_data()
+        self.current_tab = "opera"
+        self.show_tab(self.current_tab)
+
+    def _setup_header_frame(self):
         self.header_frame = ctk.CTkFrame(self, fg_color=COLORS["white"], height=80, corner_radius=0)
         self.header_frame.pack(fill="x")
         self.header_frame.pack_propagate(False)
         self.header_frame.grid_columnconfigure(0, weight=1)
-        self.header_frame.grid_columnconfigure(1, weight=4)
-        self.header_frame.grid_columnconfigure(2, weight=1)
+        self.header_frame.grid_columnconfigure(1, weight=2)
+        if auth.USER == "admin":
+            self.header_frame.grid_columnconfigure(2, weight=1)
+        else:
+            self.header_frame.grid_columnconfigure(2, weight=2)
+
         self.back_button = ctk.CTkButton(
             self.header_frame,
             text="← Назад",
@@ -52,20 +68,20 @@ class TheaterMainWindow(ctk.CTkToplevel):
             command=self.go_back
         )
         self.back_button.grid(row=0, column=0, padx=20, pady=20, sticky="w")
-        self.settings_button = ctk.CTkButton(
-            self.header_frame,
-            text="⚙️",
-            fg_color=COLORS["white"],
-            hover_color="#E0E0E0",
-            text_color=COLORS["text"],
-            font=FONTS["large"],
-            corner_radius=5,
-            width=50,
-            height=40,
-            command=self.open_settings
-        )
 
         if auth.USER == "admin":
+            self.settings_button = ctk.CTkButton(
+                self.header_frame,
+                text="⚙️",
+                fg_color=COLORS["white"],
+                hover_color="#E0E0E0",
+                text_color=COLORS["text"],
+                font=FONTS["large"],
+                corner_radius=5,
+                width=50,
+                height=40,
+                command=self.open_settings
+            )
             self.settings_button.grid(row=0, column=2, padx=20, pady=20, sticky="e")
 
         self.logo_label = ctk.CTkLabel(
@@ -74,7 +90,9 @@ class TheaterMainWindow(ctk.CTkToplevel):
             font=FONTS["header"],
             text_color=COLORS["text"]
         )
-        self.logo_label.grid(row=0, column=1, pady=20)
+        self.logo_label.grid(row=0, column=1, pady=20, sticky="nsew")
+
+    def _setup_nav_frame(self):
         self.nav_frame = ctk.CTkFrame(self, fg_color=COLORS["white"], height=100)
         self.nav_frame.pack(fill="x", pady=(0, 10))
         self.calendar_frame = ctk.CTkFrame(self.nav_frame, fg_color=COLORS["white"], height=40)
@@ -83,6 +101,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
         self.calendar_buttons = []
         today = datetime.now().date()
         days = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "НД"]
+
         for i in range(7):
             date = today + timedelta(days=i)
             day_label = ctk.CTkButton(
@@ -101,6 +120,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
             )
             day_label.pack(side="left", padx=5)
             self.calendar_buttons.append(day_label)
+
         self.reset_button = ctk.CTkButton(
             self.calendar_frame,
             text="Скинути",
@@ -114,10 +134,12 @@ class TheaterMainWindow(ctk.CTkToplevel):
             command=self.reset_filter
         )
         self.reset_button.pack(side="left", padx=5)
+
         self.tab_frame = ctk.CTkFrame(self.nav_frame, fg_color=COLORS["white"], height=40)
         self.tab_frame.pack(fill="x", padx=20, pady=(5, 0))
         self.tab_frame.grid_columnconfigure((0, 5), weight=1)
         self.tab_frame.grid_columnconfigure((1, 2, 3, 4), weight=0)
+
         button_style = {
             "fg_color": COLORS["white"],
             "hover_color": "#E0E0E0",
@@ -127,49 +149,43 @@ class TheaterMainWindow(ctk.CTkToplevel):
             "width": 100,
             "height": 30
         }
-        self.tab_opera = ctk.CTkButton(
-            self.tab_frame,
-            text="Опера",
-            command=lambda: self.show_tab("opera"),
-            **button_style
-        )
-        self.tab_opera.grid(row=0, column=1, padx=10, pady=5)
-        self.tab_ballet = ctk.CTkButton(
-            self.tab_frame,
-            text="Балет",
-            command=lambda: self.show_tab("ballet"),
-            **button_style
-        )
-        self.tab_ballet.grid(row=0, column=2, padx=10, pady=5)
-        self.tab_concert = ctk.CTkButton(
-            self.tab_frame,
-            text="Концерти",
-            command=lambda: self.show_tab("concert"),
-            **button_style
-        )
-        self.tab_concert.grid(row=0, column=3, padx=10, pady=5)
-        self.filter_button = ctk.CTkButton(
-            self.tab_frame,
-            text="Фільтр",
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            text_color=COLORS["white"],
-            font=FONTS["regular"],
-            corner_radius=5,
-            width=100,
-            height=30,
-            command=self.open_filter
-        )
-        self.filter_button.grid(row=0, column=4, padx=10, pady=5)
+
+        self.tabs = {
+            "opera": ctk.CTkButton(
+                self.tab_frame,
+                text="Опера",
+                command=lambda: self.show_tab("opera"),
+                **button_style
+            ),
+            "ballet": ctk.CTkButton(
+                self.tab_frame,
+                text="Балет",
+                command=lambda: self.show_tab("ballet"),
+                **button_style
+            ),
+            "concert": ctk.CTkButton(
+                self.tab_frame,
+                text="Концерти",
+                command=lambda: self.show_tab("concert"),
+                **button_style
+            )
+        }
+        self.tabs["opera"].grid(row=0, column=1, padx=10, pady=5)
+        self.tabs["ballet"].grid(row=0, column=2, padx=10, pady=5)
+        self.tabs["concert"].grid(row=0, column=3, padx=10, pady=5)
+
+    def _setup_content_frame(self):
         self.content_frame = ctk.CTkScrollableFrame(self, fg_color=COLORS["background"], corner_radius=0)
         self.content_frame.pack(pady=10, padx=20, fill="both", expand=True)
+
+    def _load_performance_data(self):
         try:
             with open("ui/data_performance.json", "r", encoding="utf-8") as file:
                 self.performance = json.load(file)
-        except FileNotFoundError:
+        except (FileNotFoundError, json.JSONDecodeError) as e:
             CTkMessagebox(
                 title="Помилка",
-                message="Файл data_performance.json не знайдено!",
+                message=f"Не вдалося завантажити дані: {str(e)}",
                 icon="warning",
                 fg_color=COLORS["white"],
                 title_color=COLORS["text"],
@@ -177,8 +193,6 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 button_hover_color=COLORS["primary_hover"]
             )
             self.performance = {"opera": [], "ballet": [], "concert": []}
-        self.current_tab = "opera"
-        self.show_tab(self.current_tab)
 
     def select_date(self, date):
         self.selected_date = date
@@ -198,13 +212,21 @@ class TheaterMainWindow(ctk.CTkToplevel):
 
     def show_tab(self, tab_name):
         self.current_tab = tab_name
+        for name, button in self.tabs.items():
+            button.configure(
+                fg_color=COLORS["primary"] if name == tab_name else COLORS["white"],
+                text_color=COLORS["white"] if name == tab_name else COLORS["text"]
+            )
+
         for widget in self.content_frame.winfo_children():
             widget.destroy()
+
         MONTHS_UA = {
             "СІЧНЯ": "01", "ЛЮТОГО": "02", "БЕРЕЗНЯ": "03", "КВІТНЯ": "04",
             "ТРАВНЯ": "05", "ЧЕРВНЯ": "06", "ЛИПНЯ": "07", "СЕРПНЯ": "08",
             "ВЕРЕСНЯ": "09", "ЖОВТНЯ": "10", "ЛИСТОПАДА": "11", "ГРУДНЯ": "12"
         }
+
         for item in self.performance.get(tab_name, []):
             try:
                 date_parts = item.get("date", "26 ТРАВНЯ ПН").split()
@@ -213,10 +235,11 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 if not month_num:
                     continue
                 item_date = datetime.strptime(f"2025-{month_num}-{day}", "%Y-%m-%d").date()
-            except Exception:
+                if self.selected_date and item_date != self.selected_date:
+                    continue
+            except (ValueError, KeyError):
                 continue
-            if self.selected_date and item_date != self.selected_date:
-                continue
+
             card_frame = ctk.CTkFrame(
                 self.content_frame,
                 fg_color=COLORS["white"],
@@ -228,6 +251,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
             card_frame.grid_columnconfigure(0, weight=0)
             card_frame.grid_columnconfigure(1, weight=1)
             card_frame.grid_columnconfigure(2, weight=0)
+
             date_frame = ctk.CTkFrame(card_frame, fg_color=COLORS["white"])
             date_frame.grid(row=0, column=0, padx=10, pady=10, sticky="n")
             date_parts = item.get("date", "26 ТРАВНЯ ПН").split()
@@ -252,11 +276,12 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 text_color=COLORS["text"]
             )
             day_label.pack()
+
             info_frame = ctk.CTkFrame(card_frame, fg_color=COLORS["white"])
             info_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
             title_label = ctk.CTkLabel(
                 info_frame,
-                text=item["title"],
+                text=item.get("title", "Без назви"),
                 font=FONTS["title"],
                 text_color=COLORS["text"],
                 anchor="w"
@@ -264,7 +289,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
             title_label.pack(fill="x")
             time_label = ctk.CTkLabel(
                 info_frame,
-                text=f"{item['time']} | {tab_name.capitalize()}",
+                text=f"{item.get('time', 'Час не вказано')} | {tab_name.capitalize()}",
                 font=FONTS["regular"],
                 text_color=COLORS["secondary_text"],
                 anchor="w"
@@ -272,7 +297,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
             time_label.pack(fill="x")
             author_label = ctk.CTkLabel(
                 info_frame,
-                text=f"Автор: {item['author']}",
+                text=f"Автор: {item.get('author', 'Невідомий')}",
                 font=FONTS["regular"],
                 text_color=COLORS["secondary_text"],
                 anchor="w"
@@ -287,6 +312,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 wraplength=600
             )
             description_label.pack(fill="x", pady=(5, 0))
+
             button_frame = ctk.CTkFrame(info_frame, fg_color=COLORS["white"])
             button_frame.pack(fill="x", pady=(10, 0))
             buy_button = ctk.CTkButton(
@@ -315,16 +341,20 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 command=lambda i=item: self.show_details(i)
             )
             details_button.pack(side="left")
+
             try:
-                image_path = item["image"]
-                image = ctk.CTkImage(Image.open(image_path), size=(300, 200))
-                image_label = ctk.CTkLabel(
-                    card_frame,
-                    image=image,
-                    text="",
-                    corner_radius=10
-                )
-                image_label.grid(row=0, column=2, padx=10, pady=10)
+                image_path = item.get("image")
+                if image_path:
+                    image = ctk.CTkImage(Image.open(image_path), size=(300, 200))
+                    image_label = ctk.CTkLabel(
+                        card_frame,
+                        image=image,
+                        text="",
+                        corner_radius=10
+                    )
+                    image_label.grid(row=0, column=2, padx=10, pady=10)
+                else:
+                    raise FileNotFoundError("Image path not provided")
             except FileNotFoundError:
                 image_label = ctk.CTkLabel(
                     card_frame,
@@ -335,7 +365,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 image_label.grid(row=0, column=2, padx=10, pady=10)
 
     def buy_ticket(self, performance_data):
-        print(f"Відкривається TheaterSeatingUI для {performance_data['title']}")
+        print(f"Відкривається TheaterSeatingUI для {performance_data.get('title', 'Без назви')}")
         if not auth.IS_USER_LOGGED_IN:
             CTkMessagebox(
                 title="Помилка",
@@ -347,8 +377,9 @@ class TheaterMainWindow(ctk.CTkToplevel):
                 button_hover_color=COLORS["primary_hover"]
             )
             return False
+
         try:
-            auth.PERFORMANCE_FOR_TICKET = performance_data["title"]  # Встановлюємо назву вистави
+            auth.PERFORMANCE_FOR_TICKET = performance_data.get("title", "Без назви")
             theater_seating = TheaterSeating(performance_data)
             TheaterSeatingUI(self, theater_seating, "ui/orders.json", performance_data)
             return True
@@ -375,32 +406,14 @@ class TheaterMainWindow(ctk.CTkToplevel):
         self.on_back()
 
     def open_settings(self):
-        # Відкриваємо вікно керування виставами для адміністратора
         admin_window = AdminPerformanceManager(self)
-        # Оновлюємо поточну вкладку після закриття вікна адміна
-        self.after(100, lambda: self.wait_for_admin_window(admin_window))
+        self.wait_for_admin_window(admin_window)
 
     def wait_for_admin_window(self, admin_window):
-        # Перевіряємо, чи вікно адміна ще відкрите
         if admin_window.winfo_exists():
             self.after(100, lambda: self.wait_for_admin_window(admin_window))
         else:
-            # Оновлюємо дані з JSON після закриття вікна
-            try:
-                with open("ui/data_performance.json", "r", encoding="utf-8") as file:
-                    self.performance = json.load(file)
-            except FileNotFoundError:
-                CTkMessagebox(
-                    title="Помилка",
-                    message="Файл data_performance.json не знайдено!",
-                    icon="warning",
-                    fg_color=COLORS["white"],
-                    title_color=COLORS["text"],
-                    button_color=COLORS["primary"],
-                    button_hover_color=COLORS["primary_hover"]
-                )
-                self.performance = {"opera": [], "ballet": [], "concert": []}
-            # Оновлюємо відображення поточної вкладки
+            self._load_performance_data()
             self.show_tab(self.current_tab)
 
     def open_filter(self):
@@ -413,6 +426,7 @@ class TheaterMainWindow(ctk.CTkToplevel):
             button_color=COLORS["primary"],
             button_hover_color=COLORS["primary_hover"]
         )
+
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
